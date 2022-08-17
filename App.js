@@ -10,6 +10,8 @@ export default class ShoppingLists extends Component {
     super(props);
     this.state = {
       lists: [],
+      uid: '',
+      loggedInText: 'Please wait. You’re being authenticated',
     };
 
     const firebaseConfig = {
@@ -27,10 +29,23 @@ export default class ShoppingLists extends Component {
   componentDidMount() {
     this.referenceShoppingLists = firebase.firestore().collection('shoppinglists');
     this.unsubscribe = this.referenceShoppingLists.onSnapshot(this.onCollectionUpdate);
+
+    this.authUnsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
+      if (!user) {
+        await firebase.auth().signInAnonymously();
+      }
+
+      //update user state with currently active user data
+      this.setState({
+        uid: user.uid,
+        loggedInText: 'Hello there',
+      });
+    });
   }
 
   componentWillUnmount() {
     this.unsubscribe();
+    this.authUnsubscribe();
   }
 
   onCollectionUpdate = (querySnapshot) => {
@@ -58,6 +73,7 @@ export default class ShoppingLists extends Component {
   render() {
     return (
       <View style={styles.container}>
+        <Text>{this.state.loggedInText}</Text>
         <Text style={styles.text}>All Shopping Lists</Text>
         <FlatList
           data={this.state.lists}
