@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import React from 'react';
 import { StyleSheet, Text, View, FlatList, Button } from 'react-native';
 import { Component } from 'react';
 
@@ -10,7 +11,7 @@ export default class ShoppingLists extends Component {
     super(props);
     this.state = {
       lists: [],
-      uid: '',
+      uid: 0,
       loggedInText: 'Please wait. You’re being authenticated',
     };
 
@@ -25,27 +26,35 @@ export default class ShoppingLists extends Component {
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
+    this.referenceShoppingListsUser = null;
   }
   componentDidMount() {
+    // Creating references to shoppinglists collection
     this.referenceShoppingLists = firebase.firestore().collection('shoppinglists');
-    this.unsubscribe = this.referenceShoppingLists.onSnapshot(this.onCollectionUpdate);
 
     this.authUnsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
       if (!user) {
         await firebase.auth().signInAnonymously();
       }
 
-      //update user state with currently active user data
+      // Update user state with currently active user data
       this.setState({
         uid: user.uid,
         loggedInText: 'Hello there',
       });
+      //Create a refrence to the active user's document(shopping lists)
+      this.referenceShoppinglistUser = firebase
+        .firestore()
+        .collection('shoppinglists')
+        .where('uid', '==', this.state.uid);
+      // Listen for collection changes for current user
+      this.unsubscribeListUser = this.referenceShoppinglistUser.onSnapshot(this.onCollectionUpdate);
     });
   }
 
   componentWillUnmount() {
-    this.unsubscribe();
     this.authUnsubscribe();
+    this.unsubscribeListUser();
   }
 
   onCollectionUpdate = (querySnapshot) => {
@@ -68,6 +77,7 @@ export default class ShoppingLists extends Component {
     this.referenceShoppingLists.add({
       name: 'TestList',
       items: ['eggs', 'pasta', 'veggies'],
+      uid: this.state.uid,
     });
   }
   render() {
